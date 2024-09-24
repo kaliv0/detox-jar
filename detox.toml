@@ -1,0 +1,9 @@
+[format]
+description = "format project"
+dependencies = "ruff"
+commands = ["ruff check --fix", "ruff format --line-length=100 ."]
+
+[test]
+description = "test project"
+dependencies = ["pytest", "pytest-cov"]
+commands = "pytest -vv --disable-warnings -s --cache-clear"
