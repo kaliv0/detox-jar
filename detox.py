@@ -3,38 +3,6 @@ import time
 import tomllib
 
 
-# def main1():
-#     start = time.perf_counter()
-#     data = _parse()
-#     commands = []
-#     for val in data.values():
-#         install = ""
-#         run = ""
-#         deps = val.get("dependencies", [])
-#         if isinstance(deps, list):
-#             install = " ".join(deps)
-#         else:
-#             install += f"{deps}"
-#
-#         cmds = val.get("commands", [])
-#         if isinstance(cmds, list):
-#             run = " && ".join(cmds)
-#         else:
-#             run += f"{cmds}"
-#
-#         install = "pip install " + install
-#         commands.append(f"{install} && {run}")
-#
-#     commands = " && ".join(commands)
-#     prepare = "python3 -m venv .detoxenv && source .detoxenv/bin/activate"
-#     teardown = "deactivate && rm -rf .detoxenv"
-#     run = " && ".join([prepare, commands, teardown])
-#     _run_subprocess(run)
-#
-#     stop = time.perf_counter()
-#     print("detoxing 1 took: ", stop - start)
-
-
 def main():
     global_start = time.perf_counter()
     _print_cyan("Detoxing begins:")
@@ -98,6 +66,8 @@ def _run_subprocess(run):
         ):
             if text:
                 print(text, end="", flush=True)
+                if "error" in text.lower():
+                    is_successful = False
             elif err:
                 _print_red(err, end="", flush=True)
                 is_successful = False
@@ -145,5 +115,4 @@ def _print_cyan(msg, end="\n", flush=False):
 
 
 if __name__ == "__main__":
-    # main1()
     main()
