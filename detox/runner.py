@@ -14,7 +14,9 @@ class DetoxRunner:
 
     def __init__(self):
         self.data = None
-        self.all_jobs = []
+        self.all_jobs = None
+        self.cli_jobs = None
+
         self.successful_jobs = []
         self.failed_jobs = []
 
@@ -31,25 +33,25 @@ class DetoxRunner:
 
     @property
     def job_suite(self):
-        if "run" in self.data:
+        if self.cli_jobs:
+            self.all_jobs = self.cli_jobs
+        elif "run" in self.data:
             jobs = dict(self.data["run"].items())
             if "suite" not in jobs:
                 DetoxicoLogger.error("Encountered error: missing key 'suite' in 'run' table")
                 return None
             self.all_jobs = jobs["suite"]
-            return ((k, self.data[k]) for k in jobs["suite"])
         else:
             self.all_jobs = list(self.data.keys())
-            return self.data.items()
+        return ((k, self.data[k]) for k in self.all_jobs)
 
     # main flow
     def run(self, args):
         global_start = time.perf_counter()
         DetoxicoLogger.info("Detoxing begins:")
-
         self._run_detox_stages(args)
-
         global_stop = time.perf_counter()
+
         if self.is_detox_successful:
             DetoxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
             DetoxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
@@ -68,8 +70,9 @@ class DetoxRunner:
             DetoxicoLogger.fail("Detoxing failed: missing or empty detox.toml file")
             sys.exit(1)
 
-        if not self._validate_args(args):
-            DetoxicoLogger.fail(f"Detoxing failed: '{args.job}' not found in detox.toml jobs")
+        is_valid, error_job = self._read_args(args)
+        if not is_valid:
+            DetoxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in detox.toml jobs")
             sys.exit(1)
 
         self._setup()
@@ -78,7 +81,6 @@ class DetoxRunner:
             sys.exit(1)
 
         self._run_jobs()
-
         for _ in range(3):
             self._teardown()
             if self.is_teardown_successful:
@@ -93,10 +95,14 @@ class DetoxRunner:
             self.data = tomllib.load(f)
         self.is_toml_file_valid = bool(self.data)
 
-    def _validate_args(self, args):
-        if args.job is None:
-            return True
-        return args.job in self.data
+    def _read_args(self, args):
+        if args.jobs is None:
+            return True, None
+        for job in args.jobs:
+            if job not in self.data:
+                return False, job
+        self.cli_jobs = args.jobs
+        return True, None
 
     # setup environment
     def _setup(self):
@@ -131,7 +137,6 @@ class DetoxRunner:
 
             install = self._build_install_command(table_entries)
             run = self._build_run_command(table, table_entries)
-
             if not run:
                 self.is_detox_successful = False
                 return
@@ -142,7 +147,6 @@ class DetoxRunner:
             cmd += f" && {run}"
 
             is_successful = self._run_subprocess(cmd)
-
             if not is_successful:
                 self.failed_jobs.append(table)
                 DetoxicoLogger.error(f"{table.upper()} failed")

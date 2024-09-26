@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75.1.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "detox"
+dynamic = ["version"]
+description = "Command line automation tool"
+readme = "README.md"
+authors = [{ name = "Kaloyan Ivanov", email = "kaloyan.ivanov88@gmail.com" }]
+requires-python = ">= 3.11"
+
+[project.scripts]
+detox = "detox.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "detox.__version__" }

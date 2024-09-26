@@ -9,17 +9,21 @@ def get_command_line_args():
         prog="detox",
         description="Automation tool",
     )
-
     parser.add_argument("--version", action="version", version=f"%(prog)s v{__version__}")
     parser.add_argument(
         "-j",
-        "--job",
+        "--jobs",
+        nargs="+",
         help="pick a job from detox.toml file to run",
     )
     return parser.parse_args()
 
 
-# TODO: remove
-if __name__ == "__main__":
+def main():
     args = get_command_line_args()
     DetoxRunner().run(args)
+
+
+# # TODO: remove
+# if __name__ == "__main__":
+#     main()
