@@ -1,4 +1,4 @@
-class DetoxicoLogger:
+class ToxicoLogger:
     ERROR = 91
     SUCCESS = 92
     START = 93

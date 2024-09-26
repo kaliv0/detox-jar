@@ -5,7 +5,7 @@ import time
 import tomllib
 from itertools import chain
 
-from detox.logger import DetoxicoLogger
+from detox.logger import ToxicoLogger
 
 
 class DetoxRunner:
@@ -14,9 +14,8 @@ class DetoxRunner:
 
     def __init__(self):
         self.data = None
-        self.all_jobs = None
-        self.cli_jobs = None
-
+        self.all_jobs = []
+        self.cli_jobs = []
         self.successful_jobs = []
         self.failed_jobs = []
 
@@ -38,7 +37,7 @@ class DetoxRunner:
         elif "run" in self.data:
             jobs = dict(self.data["run"].items())
             if "suite" not in jobs:
-                DetoxicoLogger.error("Encountered error: missing key 'suite' in 'run' table")
+                ToxicoLogger.error("Encountered error: missing key 'suite' in 'run' table")
                 return None
             self.all_jobs = jobs["suite"]
         else:
@@ -48,36 +47,38 @@ class DetoxRunner:
     # main flow
     def run(self, args):
         global_start = time.perf_counter()
-        DetoxicoLogger.info("Detoxing begins:")
+        ToxicoLogger.info("Detoxing begins:")
         self._run_detox_stages(args)
         global_stop = time.perf_counter()
 
         if self.is_detox_successful:
-            DetoxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
-            DetoxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
+            ToxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
+            ToxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
         else:
-            DetoxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
-            DetoxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
-            DetoxicoLogger.info(
-                f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
-            )
+            ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
+            if self.failed_jobs:  # in case parsing fails before any job is run
+                ToxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
+            if self.successful_jobs:
+                ToxicoLogger.info(
+                    f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
+                )
             if self.skipped_jobs:
-                DetoxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
+                ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
 
     def _run_detox_stages(self, args):
         self._read_file()
         if not self.is_toml_file_valid:
-            DetoxicoLogger.fail("Detoxing failed: missing or empty detox.toml file")
+            ToxicoLogger.fail("Detoxing failed: missing or empty detox.toml file")
             sys.exit(1)
 
         is_valid, error_job = self._read_args(args)
         if not is_valid:
-            DetoxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in detox.toml jobs")
+            ToxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in detox.toml jobs")
             sys.exit(1)
 
         self._setup()
         if not self.is_setup_successful:
-            DetoxicoLogger.fail("Detoxing failed :(")
+            ToxicoLogger.fail("Detoxing failed :(")
             sys.exit(1)
 
         self._run_jobs()
@@ -106,23 +107,23 @@ class DetoxRunner:
 
     # setup environment
     def _setup(self):
-        DetoxicoLogger.log("Creating venv...")
+        ToxicoLogger.log("Creating venv...")
         prepare = f"python3 -m venv {self.TMP_VENV}"
         is_successful = self._run_subprocess(prepare)
         if is_successful:
             self.is_setup_successful = True
         else:
-            DetoxicoLogger.error("Failed creating new virtual environment")
+            ToxicoLogger.error("Failed creating new virtual environment")
             self.is_setup_successful = False
 
     def _teardown(self):
         teardown = f"rm -rf {self.TMP_VENV}"
-        DetoxicoLogger.log("Removing venv...")
+        ToxicoLogger.log("Removing venv...")
         is_successful = self._run_subprocess(teardown)
         if is_successful:
             self.is_teardown_successful = True
         else:
-            DetoxicoLogger.error("Failed removing virtual environment")
+            ToxicoLogger.error("Failed removing virtual environment")
             self.is_teardown_successful = False
 
     def _run_jobs(self):
@@ -131,8 +132,8 @@ class DetoxRunner:
             return
 
         for table, table_entries in self.job_suite:
-            DetoxicoLogger.log("#########################################")
-            DetoxicoLogger.start(f"{table.upper()}:")
+            ToxicoLogger.log("#########################################")
+            ToxicoLogger.start(f"{table.upper()}:")
             start = time.perf_counter()
 
             install = self._build_install_command(table_entries)
@@ -149,13 +150,13 @@ class DetoxRunner:
             is_successful = self._run_subprocess(cmd)
             if not is_successful:
                 self.failed_jobs.append(table)
-                DetoxicoLogger.error(f"{table.upper()} failed")
+                ToxicoLogger.error(f"{table.upper()} failed")
             else:
                 stop = time.perf_counter()
-                DetoxicoLogger.success(f"{table.upper()} succeeded! Took:  {stop - start}")
+                ToxicoLogger.success(f"{table.upper()} succeeded! Took:  {stop - start}")
                 self.successful_jobs.append(table)
             self.is_detox_successful &= is_successful
-        DetoxicoLogger.log("#########################################")
+        ToxicoLogger.log("#########################################")
 
     # build shell commands
     @staticmethod
@@ -177,7 +178,7 @@ class DetoxRunner:
         cmds = table_entries.get("commands", None)
         if not cmds:
             self.failed_jobs.append(table)
-            DetoxicoLogger.error(
+            ToxicoLogger.error(
                 f"Encountered error: 'commands' in '{table}' table cannot be empty or missing"
             )
             return
@@ -201,10 +202,10 @@ class DetoxRunner:
                 err := proc.stderr.read1().decode("utf-8")
             ):
                 if text:
-                    DetoxicoLogger.log(text, end="", flush=True)
+                    ToxicoLogger.log(text, end="", flush=True)
                     if "error" in text.lower():
                         is_successful = False
                 elif err:
                     is_successful = False
-                    DetoxicoLogger.error(err, end="", flush=True)
+                    ToxicoLogger.error(err, end="", flush=True)
         return is_successful

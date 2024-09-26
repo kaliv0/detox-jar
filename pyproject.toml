@@ -3,15 +3,25 @@ requires = ["setuptools>=75.1.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "detox"
+name = "detox-jar"
 dynamic = ["version"]
-description = "Command line automation tool"
+description = "Command line automation tool in pure Python"
+keywords = ["automation", "cli tool", "command line"]
 readme = "README.md"
+license = {file = "LICENSE"}
 authors = [{ name = "Kaloyan Ivanov", email = "kaloyan.ivanov88@gmail.com" }]
+
 requires-python = ">= 3.11"
+
+[project.urls]
+Repository = "https://github.com/kaliv0/detox.git"
 
 [project.scripts]
 detox = "detox.__main__:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "detox.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["detox"]
