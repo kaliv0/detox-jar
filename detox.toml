@@ -13,5 +13,8 @@ description = "test project"
 dependencies = ["pytest", "pytest-cov"]
 commands = ["pytest -vv --disable-warnings -s --cache-clear"]
 
-#[run]
-#suite = ["format", "test", "mypy"]
+[no-deps]
+commands = "echo 'Hello world'"
+
+[run]
+suite = ["lint", "format", "test", "no-deps"]

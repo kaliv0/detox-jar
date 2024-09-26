@@ -1,0 +1,10 @@
+- fail .toml file not found
+- check dicts from toml
+    -> missing commands (description and deps are optional)
+    -> ignore wrong statements ('comand' e.g.) or raise?
+- NB: search and check .toml before creating new venv
+- add cli args
+    -> run individual commands
+- add 'job-suite'
+- add flag to use same interpreter, remove temp venv at the end -> or re-use
+- show jobs with description in terminal
