@@ -4,7 +4,6 @@
 
 # Detox jar
 
-[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
 ![Python 3.x](https://img.shields.io/badge/python-3.11-blue?style=flat-square&logo=Python&logoColor=white)
 [![PyPI](https://img.shields.io/pypi/v/detox-jar.svg)](https://pypi.org/project/detox-jar/)
 
@@ -48,7 +47,7 @@ Detoxing took: 14.088007061000098
 ```
 - In case of failing jobs you get general stats
 ```shell
-(logs omiited...)
+(logs omitted...)
 $ Unsuccessful detoxing took: 13.532951637999759
 Failed jobs: ['format']
 Successful jobs: ['lint', 'test']
