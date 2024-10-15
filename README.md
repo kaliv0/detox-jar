@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/kaliv0/detox/blob/main/assets/detox-jar.jpg?raw=true" width="250" alt="Detox jar">
+  <img src="https://github.com/kaliv0/detox-jar/blob/main/assets/detox-jar.jpg?raw=true" width="250" alt="Detox jar">
 </p>
 
 # Detox jar
