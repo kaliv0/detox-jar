@@ -9,7 +9,7 @@ from detox.logger import ToxicoLogger
 
 
 class DetoxRunner:
-    CONFIG_FILE = "./detox.toml"
+    CONFIG_FILES = ["detox.toml", "detox.json", "detox.yaml", "detox.xml"]
     TMP_VENV = ".detoxenv"
 
     def __init__(self):
@@ -19,7 +19,7 @@ class DetoxRunner:
         self.successful_jobs = []
         self.failed_jobs = []
 
-        self.is_toml_file_valid = False
+        self.is_config_file_valid = False
         self.is_setup_successful = False
         self.is_teardown_successful = False
         self.is_detox_successful = True  # needed for bitwise &
@@ -66,14 +66,14 @@ class DetoxRunner:
                 ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
 
     def _run_detox_stages(self, args):
-        self._read_file()
-        if not self.is_toml_file_valid:
-            ToxicoLogger.fail("Detoxing failed: missing or empty detox.toml file")
+        self._handle_config_file()
+        if not self.is_config_file_valid:
+            ToxicoLogger.fail("Detoxing failed: missing or invalid config file")
             sys.exit(1)
 
         is_valid, error_job = self._read_args(args)
         if not is_valid:
-            ToxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in detox.toml jobs")
+            ToxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in jobs")
             sys.exit(1)
 
         self._setup()
@@ -87,14 +87,37 @@ class DetoxRunner:
             if self.is_teardown_successful:
                 break
 
-    def _read_file(self):
-        if not os.path.exists(self.CONFIG_FILE) or os.path.getsize(self.CONFIG_FILE) == 0:
-            self.is_toml_file_valid = False
-            return
+    def _handle_config_file(self):
+        for config in self.CONFIG_FILES:
+            config_path = os.path.join(os.getcwd(), config)
+            if not os.path.exists(config_path):
+                continue
+            if not os.path.getsize(config_path):
+                self.is_config_file_valid = False
+                return
+            return self._read_config_file(config_path)
+        # if we happen to be here (after the loop) no file is read and we just return
 
-        with open(self.CONFIG_FILE, "rb") as f:
-            self.data = tomllib.load(f)
-        self.is_toml_file_valid = bool(self.data)
+    def _read_config_file(self, config_path):
+        with open(config_path, "rb") as f:
+            _, extension = os.path.splitext(config_path)
+            match extension:
+                case ".toml":
+                    import tomllib
+
+                    self.data = tomllib.load(f)
+                case ".json":
+                    import json
+
+                    self.data = json.load(f)
+                case ".yaml":
+                    import yaml
+
+                    self.data = yaml.safe_load(f)
+                case _:
+                    self.is_config_file_valid = False
+                    return
+        self.is_config_file_valid = bool(self.data)
 
     def _read_args(self, args):
         if args.jobs is None:

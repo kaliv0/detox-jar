@@ -12,7 +12,8 @@
 
 ---------------------------
 ### How to use
-- Describe jobs as tables in a detox.toml file inside the root directory of your project
+- Describe jobs as tables in a config file called 'detox' (choose between .toml, .json or .yaml format).
+<br>(Put the config inside the root directory of your project)
 ```toml
 [test]
 description = "test project"

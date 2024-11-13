@@ -14,7 +14,7 @@ def get_command_line_args():
         "-j",
         "--jobs",
         nargs="+",
-        help="pick a job from detox.toml file to run",
+        help="pick a job from config file to run",
     )
     return parser.parse_args()
 

@@ -10,11 +10,12 @@ keywords = ["automation", "cli tool", "command line"]
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{ name = "Kaloyan Ivanov", email = "kaloyan.ivanov88@gmail.com" }]
+urls = { repository = "https://github.com/kaliv0/detox-jar.git" }
 
 requires-python = ">= 3.11"
-
-[project.urls]
-Repository = "https://github.com/kaliv0/detox-jar.git"
+dependencies = [
+    "pyyaml>=6.0.2"
+]
 
 [project.scripts]
 detox = "detox.__main__:main"

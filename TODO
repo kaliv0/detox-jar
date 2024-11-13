@@ -1,0 +1,11 @@
+- replace instance attrs flags
+    (self.is_config_file_valid = False
+     self.is_setup_successful = False
+     self.is_teardown_successful = False
+     self.is_detox_successful = True)
+    with returned results form functions (Go style)
+
+- remove comment on line 99 or refactor loop
+- add ruff to dev-deps
+- add types?
+- test with json and yaml
