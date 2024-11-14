@@ -12,29 +12,65 @@
 
 ---------------------------
 ### How to use
-- Describe jobs as tables in a detox.toml file inside the root directory of your project
+- Describe jobs as tables/dictionaries in a config file called 'detox' (choose between .toml, .yaml or .json format).
+<br>(Put the config inside the root directory of your project)
 ```toml
+# detox.toml
 [test]
 description = "test project"
 dependencies = ["pytest", "pytest-cov"]
 commands = "pytest -vv --disable-warnings -s --cache-clear"
 ```
+```yaml
+# detox.yaml
+test:
+  description: test project
+  dependencies:
+    - pytest
+    - pytest-cov
+  commands:
+    - pytest -vv --disable-warnings -s --cache-clear
+```
 
 - <i>description</i> and <i>dependencies</i> could be optional but not <i>commands</i>
 ```toml
+# detox.toml
 [no-deps]
 commands = "echo 'Hello world'"
+```
+(in json)
+```json
+"no-deps": {
+  "commands": "echo 'Hello world'"
+}
 ```
 
 - <i>dependencies</i> and <i>commands</i> could be strings or (in case of more than one) a list of strings
 ```toml
+# detox.toml
 commands = ["ruff check --fix", "ruff format --line-length=100 ."]
 ```
+```yaml
+# detox.yaml
+commands:
+  - ruff check --fix
+  - ruff format --line-length=100 .
+```
 
-- You could provide a [run] table inside the toml file with a <i>'suite'</i> - list of selected jobs to run
+- You could provide a [run] table inside the config file with a <i>'suite'</i> - list of selected jobs to run
 ```toml
 [run]
 suite = ["lint", "format", "test"]
+```
+```json
+"run": {
+  "suite": [
+    "lint",
+    "format",
+    "test",
+    "no-deps"
+  ]
+}
 ```
 ---------------------------
 - Run the tool in the terminal with a simple <b>'detox'</b> command
@@ -69,4 +105,4 @@ or a list of jobs
 ```shell
 $ detox -j lint format
 ```
-<b>NB:</b> If there is a [run] table in the toml file the jobs specified in the command line take precedence
+<b>NB:</b> If there is a <i>'run'</i> table in the config file the jobs specified in the command line take precedence

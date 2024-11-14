@@ -2,14 +2,14 @@ import os
 import subprocess
 import sys
 import time
-import tomllib
 from itertools import chain
 
 from detox.logger import ToxicoLogger
 
 
 class DetoxRunner:
-    CONFIG_FILE = "./detox.toml"
+    CONFIG_FILE = "detox"
+    CONFIG_FORMATS = [".toml", ".json", ".yaml"]
     TMP_VENV = ".detoxenv"
 
     def __init__(self):
@@ -19,16 +19,9 @@ class DetoxRunner:
         self.successful_jobs = []
         self.failed_jobs = []
 
-        self.is_toml_file_valid = False
-        self.is_setup_successful = False
-        self.is_teardown_successful = False
-        self.is_detox_successful = True  # needed for bitwise &
-
     @property
     def skipped_jobs(self):
-        return [
-            job for job in self.all_jobs if job not in chain(self.failed_jobs, self.successful_jobs)
-        ]
+        return [job for job in self.all_jobs if job not in chain(self.failed_jobs, self.successful_jobs)]
 
     @property
     def job_suite(self):
@@ -48,146 +41,137 @@ class DetoxRunner:
     def run(self, args):
         global_start = time.perf_counter()
         ToxicoLogger.info("Detoxing begins:")
-        self._run_detox_stages(args)
+        is_detox_successful = self._run_detox_stages(args)
         global_stop = time.perf_counter()
 
-        if self.is_detox_successful:
+        if is_detox_successful:
             ToxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
             ToxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
-        else:
-            ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
-            if self.failed_jobs:  # in case parsing fails before any job is run
-                ToxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
-            if self.successful_jobs:
-                ToxicoLogger.info(
-                    f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
-                )
-            if self.skipped_jobs:
-                ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
-
-    def _run_detox_stages(self, args):
-        self._read_file()
-        if not self.is_toml_file_valid:
-            ToxicoLogger.fail("Detoxing failed: missing or empty detox.toml file")
-            sys.exit(1)
-
-        is_valid, error_job = self._read_args(args)
-        if not is_valid:
-            ToxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in detox.toml jobs")
-            sys.exit(1)
-
-        self._setup()
-        if not self.is_setup_successful:
-            ToxicoLogger.fail("Detoxing failed :(")
-            sys.exit(1)
-
-        self._run_jobs()
-        for _ in range(3):
-            self._teardown()
-            if self.is_teardown_successful:
-                break
-
-    def _read_file(self):
-        if not os.path.exists(self.CONFIG_FILE) or os.path.getsize(self.CONFIG_FILE) == 0:
-            self.is_toml_file_valid = False
             return
 
-        with open(self.CONFIG_FILE, "rb") as f:
-            self.data = tomllib.load(f)
-        self.is_toml_file_valid = bool(self.data)
+        ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
+        if self.failed_jobs:  # in case parsing fails before any job is run
+            ToxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
+        if self.successful_jobs:
+            ToxicoLogger.info(
+                f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
+            )
+        if self.skipped_jobs:
+            ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
+
+    def _run_detox_stages(self, args):
+        if not (self._handle_config_file() and self._read_args(args) and self._setup()):
+            ToxicoLogger.fail("Detoxing failed")
+            sys.exit(1)
+
+        is_detox_successful = self._run_jobs()
+        for _ in range(3):
+            is_teardown_successful = self._teardown()
+            if is_teardown_successful:
+                break
+        return is_detox_successful
+
+    def _handle_config_file(self):
+        for config_fmt in self.CONFIG_FORMATS:
+            config_path = os.path.join(os.getcwd(), f"{self.CONFIG_FILE}{config_fmt}")
+            if not os.path.exists(config_path):
+                continue
+            if not os.path.getsize(config_path):
+                ToxicoLogger.fail("Empty config file")
+                return False
+            return self._read_config_file(config_path)
+        ToxicoLogger.fail("Config file not found")
+        return False
+
+    def _read_config_file(self, config_path):
+        with open(config_path, "rb") as f:
+            _, extension = os.path.splitext(config_path)
+            match extension:
+                case ".toml":
+                    import tomllib
+
+                    self.data = tomllib.load(f)
+                case ".json":
+                    import json
+
+                    self.data = json.load(f)
+                case ".yaml":
+                    import yaml
+
+                    self.data = yaml.safe_load(f)
+        return bool(self.data)
 
     def _read_args(self, args):
         if args.jobs is None:
-            return True, None
+            return True
         for job in args.jobs:
             if job not in self.data:
-                return False, job
+                ToxicoLogger.fail(f"'{job}' not found in jobs suite")
+                return False
         self.cli_jobs = args.jobs
-        return True, None
+        return True
 
     # setup environment
     def _setup(self):
         ToxicoLogger.log("Creating venv...")
         prepare = f"python3 -m venv {self.TMP_VENV}"
-        is_successful = self._run_subprocess(prepare)
-        if is_successful:
-            self.is_setup_successful = True
-        else:
-            ToxicoLogger.error("Failed creating new virtual environment")
-            self.is_setup_successful = False
+        if self._run_subprocess(prepare):
+            return True
+        ToxicoLogger.error("Failed creating new virtual environment")
+        return False
 
     def _teardown(self):
         teardown = f"rm -rf {self.TMP_VENV}"
         ToxicoLogger.log("Removing venv...")
-        is_successful = self._run_subprocess(teardown)
-        if is_successful:
-            self.is_teardown_successful = True
-        else:
-            ToxicoLogger.error("Failed removing virtual environment")
-            self.is_teardown_successful = False
+        if self._run_subprocess(teardown):
+            return True
+        ToxicoLogger.error("Failed removing virtual environment")
+        return False
 
     def _run_jobs(self):
         if not self.job_suite:
-            self.is_detox_successful = False
-            return
+            return False
 
+        is_detox_successful = True
         for table, table_entries in self.job_suite:
             ToxicoLogger.log("#########################################")
             ToxicoLogger.start(f"{table.upper()}:")
             start = time.perf_counter()
 
             install = self._build_install_command(table_entries)
-            run = self._build_run_command(table, table_entries)
-            if not run:
-                self.is_detox_successful = False
-                return
+            if not (run := self._build_run_command(table, table_entries)):
+                return False
 
             cmd = f"source {self.TMP_VENV}/bin/activate"
             if install:
                 cmd += f" && {install}"
             cmd += f" && {run}"
 
-            is_successful = self._run_subprocess(cmd)
-            if not is_successful:
+            if not (is_job_successful := self._run_subprocess(cmd)):
                 self.failed_jobs.append(table)
                 ToxicoLogger.error(f"{table.upper()} failed")
             else:
                 stop = time.perf_counter()
                 ToxicoLogger.success(f"{table.upper()} succeeded! Took:  {stop - start}")
                 self.successful_jobs.append(table)
-            self.is_detox_successful &= is_successful
+            is_detox_successful &= is_job_successful
         ToxicoLogger.log("#########################################")
+        return is_detox_successful
 
     # build shell commands
     @staticmethod
     def _build_install_command(table_entries):
-        deps = table_entries.get("dependencies", None)
-        if not deps:
-            return
-
-        install = ""
-        if isinstance(deps, list):
-            install = " ".join(deps)
-        else:
-            install += f"{deps}"
-        install = "pip install " + install
-        return install
+        if not (deps := table_entries.get("dependencies", None)):
+            return None
+        install = " ".join(deps) if isinstance(deps, list) else deps
+        return f"pip install {install}"
 
     def _build_run_command(self, table, table_entries):
-        run = ""
-        cmds = table_entries.get("commands", None)
-        if not cmds:
+        if not (cmds := table_entries.get("commands", None)):
             self.failed_jobs.append(table)
-            ToxicoLogger.error(
-                f"Encountered error: 'commands' in '{table}' table cannot be empty or missing"
-            )
-            return
-
-        if isinstance(cmds, list):
-            run = " && ".join(cmds)
-        else:
-            run += f"{cmds}"
-        return run
+            ToxicoLogger.error(f"Encountered error: 'commands' in '{table}' table cannot be empty or missing")
+            return None
+        return " && ".join(cmds) if isinstance(cmds, list) else cmds
 
     # execute shell commands
     @staticmethod
