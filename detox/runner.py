@@ -1,7 +1,7 @@
 import os
 import subprocess
+import sys
 import time
-from sys import exit
 from itertools import chain
 
 from detox.logger import ToxicoLogger
@@ -47,7 +47,7 @@ class DetoxRunner:
         if is_detox_successful:
             ToxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
             ToxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
-            exit()
+            # sys.exit()  # TODO
         else:
             ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
             if self.failed_jobs:  # in case parsing fails before any job is run
@@ -58,12 +58,12 @@ class DetoxRunner:
                 )
             if self.skipped_jobs:
                 ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
-            exit(1)
+            # sys.exit(1) # TODO
 
     def _run_detox_stages(self, args):
         if not (self._handle_config_file() and self._read_args(args) and self._setup()):
             ToxicoLogger.fail("Detoxing failed")
-            exit(1)
+            sys.exit(1)
 
         is_detox_successful = self._run_jobs()
         for _ in range(3):
@@ -168,16 +168,14 @@ class DetoxRunner:
         if not (deps := table_entries.get("dependencies", None)):
             return None
         install = " ".join(deps) if isinstance(deps, list) else deps
-        return "pip install " + install
+        return f"pip install {install}"
 
     def _build_run_command(self, table, table_entries):
         if not (cmds := table_entries.get("commands", None)):
             self.failed_jobs.append(table)
             ToxicoLogger.error(f"Encountered error: 'commands' in '{table}' table cannot be empty or missing")
             return None
-        if isinstance(cmds, list):
-            return " && ".join(cmds)
-        return cmds
+        return " && ".join(cmds) if isinstance(cmds, list) else cmds
 
     # execute shell commands
     @staticmethod
