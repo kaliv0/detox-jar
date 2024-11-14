@@ -1,7 +1,7 @@
 import os
 import subprocess
-import sys
 import time
+from sys import exit
 from itertools import chain
 
 from detox.logger import ToxicoLogger
@@ -47,7 +47,7 @@ class DetoxRunner:
         if is_detox_successful:
             ToxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
             ToxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
-            # sys.exit(0)  # TODO
+            exit()
         else:
             ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
             if self.failed_jobs:  # in case parsing fails before any job is run
@@ -58,21 +58,12 @@ class DetoxRunner:
                 )
             if self.skipped_jobs:
                 ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
-            # sys.exit(1)  # TODO
+            exit(1)
 
     def _run_detox_stages(self, args):
-        if not self._handle_config_file():
-            ToxicoLogger.fail("Detoxing failed: missing or invalid config file")
-            sys.exit(1)
-
-        is_valid, error_job = self._read_args(args)
-        if not is_valid:
-            ToxicoLogger.fail(f"Detoxing failed: '{error_job}' not found in jobs")
-            sys.exit(1)
-
-        if not self._setup():
-            ToxicoLogger.fail("Detoxing failed :(")
-            sys.exit(1)
+        if not (self._handle_config_file() and self._read_args(args) and self._setup()):
+            ToxicoLogger.fail("Detoxing failed")
+            exit(1)
 
         is_detox_successful = self._run_jobs()
         for _ in range(3):
@@ -82,14 +73,15 @@ class DetoxRunner:
         return is_detox_successful
 
     def _handle_config_file(self):
-        # TODO: add explicit error logs here
         for config_fmt in self.CONFIG_FORMATS:
             config_path = os.path.join(os.getcwd(), f"{self.CONFIG_FILE}{config_fmt}")
             if not os.path.exists(config_path):
                 continue
             if not os.path.getsize(config_path):
+                ToxicoLogger.fail("Empty config file")
                 return False
             return self._read_config_file(config_path)
+        ToxicoLogger.fail("Config file not found")
         return False
 
     def _read_config_file(self, config_path):
@@ -109,18 +101,19 @@ class DetoxRunner:
 
                     self.data = yaml.safe_load(f)
                 case _:
+                    ToxicoLogger.fail("Invalid config file format")
                     return False
         return bool(self.data)
 
     def _read_args(self, args):
         if args.jobs is None:
-            return True, None
+            return True
         for job in args.jobs:
             if job not in self.data:
-                # TODO: add explicit error logs here
-                return False, job
+                ToxicoLogger.fail(f"'{job}' not found in jobs suite")
+                return False
         self.cli_jobs = args.jobs
-        return True, None
+        return True
 
     # setup environment
     def _setup(self):
@@ -174,7 +167,6 @@ class DetoxRunner:
     def _build_install_command(table_entries):
         if not (deps := table_entries.get("dependencies", None)):
             return None
-
         install = " ".join(deps) if isinstance(deps, list) else deps
         return "pip install " + install
 
@@ -183,11 +175,9 @@ class DetoxRunner:
             self.failed_jobs.append(table)
             ToxicoLogger.error(f"Encountered error: 'commands' in '{table}' table cannot be empty or missing")
             return None
-
         if isinstance(cmds, list):
             return " && ".join(cmds)
         return cmds
-        # return " && ".join(cmds) if isinstance(cmds, list) else cmds  # TODO
 
     # execute shell commands
     @staticmethod
