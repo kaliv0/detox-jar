@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "detox-jar"
 dynamic = ["version"]
 description = "Command line automation tool in pure Python"
-keywords = ["automation", "cli tool", "command line"]
+keywords = ["automation", "cli tool", "command line runner"]
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [{ name = "Kaloyan Ivanov", email = "kaloyan.ivanov88@gmail.com" }]
@@ -15,7 +15,13 @@ urls = { repository = "https://github.com/kaliv0/detox-jar.git" }
 requires-python = ">= 3.11"
 dependencies = [
     "pyyaml>=6.0.2",
-    "ruff>=0.7.3"
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7.3",
+    "build>=1.2.2",
+    "twine>=5.1.1",
 ]
 
 [project.scripts]

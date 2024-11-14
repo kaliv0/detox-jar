@@ -1,0 +1,36 @@
+{
+  "lint": {
+    "commands": "mypy --ignore-missing-imports .",
+    "dependencies": "mypy",
+    "description": "lint project"
+  },
+  "format": {
+    "commands": [
+      "ruff check --fix",
+      "ruff format --line-length=100 ."
+    ],
+    "dependencies": "ruff",
+    "description": "format project"
+  },
+  "test": {
+    "commands": [
+      "pytest -vv --disable-warnings -s --cache-clear"
+    ],
+    "dependencies": [
+      "pytest",
+      "pytest-cov"
+    ],
+    "description": "test project"
+  },
+  "no-deps": {
+    "commands": "echo 'Hello world'"
+  },
+  "run": {
+    "suite": [
+      "lint",
+      "format",
+      "test",
+      "no-deps"
+    ]
+  }
+}

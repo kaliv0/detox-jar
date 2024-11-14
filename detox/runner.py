@@ -47,18 +47,17 @@ class DetoxRunner:
         if is_detox_successful:
             ToxicoLogger.info(f"All jobs succeeded! {self.successful_jobs}")
             ToxicoLogger.info(f"Detoxing took: {global_stop - global_start}")
-            # sys.exit()  # TODO
-        else:
-            ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
-            if self.failed_jobs:  # in case parsing fails before any job is run
-                ToxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
-            if self.successful_jobs:
-                ToxicoLogger.info(
-                    f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
-                )
-            if self.skipped_jobs:
-                ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
-            # sys.exit(1) # TODO
+            return
+
+        ToxicoLogger.fail(f"Unsuccessful detoxing took: {global_stop - global_start}")
+        if self.failed_jobs:  # in case parsing fails before any job is run
+            ToxicoLogger.error(f"Failed jobs: {self.failed_jobs}")
+        if self.successful_jobs:
+            ToxicoLogger.info(
+                f"Successful jobs: {[x for x in self.successful_jobs if x not in self.failed_jobs]}"
+            )
+        if self.skipped_jobs:
+            ToxicoLogger.fail(f"Skipped jobs: {self.skipped_jobs}")
 
     def _run_detox_stages(self, args):
         if not (self._handle_config_file() and self._read_args(args) and self._setup()):
@@ -100,9 +99,6 @@ class DetoxRunner:
                     import yaml
 
                     self.data = yaml.safe_load(f)
-                case _:
-                    ToxicoLogger.fail("Invalid config file format")
-                    return False
         return bool(self.data)
 
     def _read_args(self, args):
